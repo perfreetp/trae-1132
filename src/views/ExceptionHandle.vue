@@ -369,7 +369,8 @@
 <script setup>
 import { ref, computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { exceptionList, batchList, dutyNotes as mockDutyNotes } from '@/data/mockData'
+import { exceptionList, batchList, dutyNotes, createException } from '@/data/mockData'
+import dayjs from 'dayjs'
 
 const activeTab = ref('list')
 const levelFilter = ref('')
@@ -380,12 +381,10 @@ const showHandleDialog = ref(false)
 const selectedRecall = ref(null)
 const currentException = ref(null)
 
-const recallList = [
+const recallList = ref([
   { id: 'R001', batch: 'B20240607003', product: '云南昆明鲜花玫瑰', reason: '运输温度异常', quantity: 500, returned: 320, progress: 64, stores: 8, startTime: '2024-06-06 14:30:00', step: 2 },
   { id: 'R002', batch: 'B20240607006', product: '广东湛江生蚝', reason: '临期紧急处理', quantity: 800, returned: 680, progress: 85, stores: 5, startTime: '2024-06-07 09:15:00', step: 3 }
-]
-
-const dutyNotes = ref([...mockDutyNotes])
+])
 
 const todoList = ref([
   { text: '处理B20240607006批次生蚝临期问题', done: false, urgent: true },
@@ -437,25 +436,56 @@ const handleException = (ex) => {
 }
 
 const submitReport = () => {
-  ElMessage.success('异常已上报，相关人员已收到通知')
+  if (!reportForm.type || !reportForm.batch || !reportForm.location) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+  const newEx = createException(reportForm)
+  ElMessage.success(`异常 ${newEx.id} 已上报，相关人员已收到通知`)
   showReportDialog.value = false
+  reportForm.type = ''
+  reportForm.level = 'warning'
+  reportForm.batch = ''
+  reportForm.location = ''
+  reportForm.description = ''
 }
 
 const submitNote = () => {
+  if (!noteForm.content) {
+    ElMessage.warning('请输入备注内容')
+    return
+  }
   const newNote = {
     id: 'N' + Date.now(),
-    time: new Date().toLocaleString('zh-CN'),
+    time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
     author: '张值班',
     content: noteForm.content,
     type: noteForm.type
   }
-  dutyNotes.value.unshift(newNote)
+  dutyNotes.unshift(newNote)
   ElMessage.success('备注已添加')
   showNoteDialog.value = false
   noteForm.content = ''
 }
 
 const submitHandle = () => {
+  if (!currentException.value) return
+  
+  currentException.value.handler = handleForm.handler
+  currentException.value.status = handleForm.result === 'resolved' ? 'resolved' : 'handling'
+  currentException.value.statusText = handleForm.result === 'resolved' ? '已解决' : '处理中'
+  
+  if (handleForm.measures) {
+    const note = {
+      id: 'N' + Date.now(),
+      time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      author: handleForm.handler,
+      content: `处理异常 ${currentException.value.id}：${handleForm.measures}`,
+      type: 'handle'
+    }
+    dutyNotes.unshift(note)
+  }
+  
   ElMessage.success('处理记录已提交')
   showHandleDialog.value = false
 }

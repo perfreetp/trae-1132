@@ -102,7 +102,7 @@
                 <text :x="loc.x + 14" :y="loc.y + 4" fill="#94a3b8" font-size="11">{{ loc.name }}</text>
               </g>
 
-              <g v-for="(v, idx) in vehicleList" :key="v.id" @click="selectVehicle(v)" style="cursor: pointer;">
+              <g v-for="(v, idx) in filteredVehicles" :key="v.id" @click="selectVehicle(v)" style="cursor: pointer;">
                 <rect :x="getVehiclePos(v).x - 12" :y="getVehiclePos(v).y - 8" width="24" height="16" rx="3" fill="#1e293b" stroke="#3b82f6" stroke-width="2" />
                 <text :x="getVehiclePos(v).x" :y="getVehiclePos(v).y + 4" fill="#60a5fa" font-size="10" text-anchor="middle">
                   <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
@@ -147,7 +147,7 @@
             </el-button>
           </div>
           <div class="vehicle-list">
-            <div v-for="v in vehicleList" :key="v.id" class="vehicle-item"
+            <div v-for="v in filteredVehicles" :key="v.id" class="vehicle-item"
               :class="{ 'active': selectedVehicle?.id === v.id }"
               @click="selectVehicle(v)">
               <div class="flex-between">
@@ -267,6 +267,13 @@ const bookingForm = ref({
 const transitCount = computed(() => vehicleList.filter(v => v.status === 'transit').length)
 const loadingCount = computed(() => vehicleList.filter(v => v.status === 'loading' || v.status === 'unloading').length)
 const deliveryCount = computed(() => vehicleList.filter(v => v.status === 'delivery').length)
+
+const filteredVehicles = computed(() => {
+  if (mapView.value === 'all') return vehicleList
+  if (mapView.value === 'transit') return vehicleList.filter(v => v.status === 'transit')
+  if (mapView.value === 'warning') return vehicleList.filter(v => v.status === 'warning' || v.temperature > 5)
+  return vehicleList
+})
 
 const vehiclePositions = {
   'V001': { x: 300, y: 145 },

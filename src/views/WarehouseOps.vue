@@ -291,9 +291,7 @@
         </el-form-item>
         <el-form-item label="库位编号">
           <el-select v-model="allocateForm.location" placeholder="选择库位" style="width: 100%;">
-            <el-option label="冷藏-01 (空闲)" value="冷藏-01" />
-            <el-option label="冷藏-02 (空闲)" value="冷藏-02" />
-            <el-option label="冷藏-03 (空闲)" value="冷藏-03" />
+            <el-option v-for="loc in availableLocations" :key="loc.id" :label="loc.id + ' (空闲)'" :value="loc.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="存放数量">
@@ -363,9 +361,10 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { batchList, vehicleList, warehouseList } from '@/data/mockData'
+import { batchList, vehicleList, warehouseList, loadingTasks, damageRecords, allocatedLocations, createLoadingTask, createDamageRecord } from '@/data/mockData'
+import dayjs from 'dayjs'
 
 const activeTab = ref('loading')
 const warehouseFilter = ref('')
@@ -379,19 +378,27 @@ const locationStatus = reactive([
   'empty', 'occupied', 'occupied', 'empty', 'empty', 'reserved'
 ])
 
-const loadingTasks = [
-  { taskNo: 'L20240607001', type: '入库', batch: 'B20240607001', product: '山东烟台红富士苹果', warehouse: '华东中心仓', vehicle: '沪A·12345', tempOk: true, packageOk: true, operator: '王仓管', time: '2024-06-07 08:30:00', status: 'normal', statusText: '已完成' },
-  { taskNo: 'L20240607002', type: '入库', batch: 'B20240607004', product: '内蒙古草原羊肉', warehouse: '华北中心仓', vehicle: '蒙A·22222', tempOk: true, packageOk: false, operator: '李仓管', time: '2024-06-07 09:15:00', status: 'warning', statusText: '待复检' },
-  { taskNo: 'L20240607003', type: '出库', batch: 'B20240607005', product: '浙江舟山带鱼', warehouse: '华东中心仓', vehicle: '浙B·33333', tempOk: true, packageOk: true, operator: '张仓管', time: '2024-06-07 10:00:00', status: 'normal', statusText: '已完成' },
-  { taskNo: 'L20240607004', type: '入库', batch: 'B20240607002', product: '海南三亚妃子笑荔枝', warehouse: '华南中心仓', vehicle: '粤B·67890', tempOk: true, packageOk: true, operator: '赵仓管', time: '2024-06-07 11:30:00', status: 'info', statusText: '进行中' },
-  { taskNo: 'L20240607005', type: '出库', batch: 'B20240607003', product: '云南昆明鲜花玫瑰', warehouse: '西南中心仓', vehicle: '云A·11111', tempOk: false, packageOk: true, operator: '孙仓管', time: '2024-06-07 12:00:00', status: 'danger', statusText: '异常' }
+const allLocations = [
+  { id: '冷藏-01', zone: '冷藏', index: 0 },
+  { id: '冷藏-02', zone: '冷藏', index: 1 },
+  { id: '冷藏-03', zone: '冷藏', index: 2 },
+  { id: '冷藏-04', zone: '冷藏', index: 3 },
+  { id: '冷藏-05', zone: '冷藏', index: 4 },
+  { id: '冷藏-06', zone: '冷藏', index: 5 },
+  { id: '冷冻-01', zone: '冷冻', index: 6 },
+  { id: '冷冻-02', zone: '冷冻', index: 7 },
+  { id: '冷冻-03', zone: '冷冻', index: 8 },
+  { id: '冷冻-04', zone: '冷冻', index: 9 },
+  { id: '冷冻-05', zone: '冷冻', index: 10 },
+  { id: '冷冻-06', zone: '冷冻', index: 11 }
 ]
 
-const damageRecords = [
-  { id: 'D20240607001', batch: 'B20240607002', product: '海南三亚妃子笑荔枝', type: '破损', quantity: 150, unit: 'kg', lossAmount: 4500, location: '装卸作业', reason: '人工卸车时部分包装箱挤压变形', operator: '李仓管', time: '2024-06-07 09:30:00' },
-  { id: 'D20240607002', batch: 'B20240607003', product: '云南昆明鲜花玫瑰', type: '变质', quantity: 50, unit: '束', lossAmount: 2500, location: '运输途中', reason: '制冷设备短暂停机导致温度回升', operator: '张值班', time: '2024-06-07 10:45:00' },
-  { id: 'D20240606001', batch: 'B20240606005', product: '浙江舟山带鱼', type: '其他', quantity: 30, unit: 'kg', lossAmount: 900, location: '仓储期间', reason: '库内风机故障导致局部温度波动', operator: '王仓管', time: '2024-06-06 16:20:00' }
-]
+const availableLocations = computed(() => {
+  return allLocations.filter(loc => {
+    const allocated = allocatedLocations.find(a => a.location === loc.id)
+    return !allocated
+  })
+})
 
 const checkForm = reactive({
   type: '入库',
@@ -434,18 +441,91 @@ const viewLocationDetail = (zone, idx) => {
 }
 
 const submitCheck = () => {
-  ElMessage.success('检查记录已提交')
+  if (!checkForm.batch || !checkForm.warehouse || !checkForm.vehicle) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+  const batch = batchList.find(b => b.id === checkForm.batch)
+  const tempOk = checkForm.temperature >= 0 && checkForm.temperature <= 4
+  const packageOk = checkForm.packageIntact && checkForm.noDamage && checkForm.sealed
+  let status = 'normal', statusText = '已完成'
+  if (!tempOk || !packageOk) { status = 'warning'; statusText = '待复检' }
+  if (!tempOk && !packageOk) { status = 'danger'; statusText = '异常' }
+  
+  const newTask = createLoadingTask({
+    type: checkForm.type,
+    batch: checkForm.batch,
+    product: batch?.name || '',
+    warehouse: checkForm.warehouse,
+    vehicle: checkForm.vehicle,
+    tempOk,
+    packageOk,
+    operator: '王仓管',
+    status,
+    statusText
+  })
+  ElMessage.success(`检查记录 ${newTask.taskNo} 已提交`)
   showCheckDialog.value = false
+  checkForm.batch = ''
+  checkForm.warehouse = ''
+  checkForm.vehicle = ''
+  checkForm.temperature = 2.5
+  checkForm.packageIntact = true
+  checkForm.noDamage = true
+  checkForm.sealed = true
+  checkForm.remark = ''
 }
 
 const submitAllocate = () => {
-  ElMessage.success('库位分配成功')
+  if (!allocateForm.batch || !allocateForm.zone || !allocateForm.location) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+  const locInfo = allLocations.find(l => l.id === allocateForm.location)
+  if (locInfo && locationStatus[locInfo.index] === 'empty') {
+    locationStatus[locInfo.index] = 'occupied'
+  }
+  allocatedLocations.push({
+    id: 'A' + Date.now(),
+    batch: allocateForm.batch,
+    zone: allocateForm.zone,
+    location: allocateForm.location,
+    quantity: allocateForm.quantity,
+    operator: '王仓管',
+    time: dayjs().format('YYYY-MM-DD HH:mm:ss')
+  })
+  ElMessage.success(`库位 ${allocateForm.location} 分配成功`)
   showAllocateDialog.value = false
+  allocateForm.batch = ''
+  allocateForm.zone = ''
+  allocateForm.location = ''
+  allocateForm.quantity = 1000
 }
 
 const submitDamage = () => {
-  ElMessage.success('损耗已登记')
+  if (!damageForm.batch || !damageForm.quantity || !damageForm.location) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+  const batch = batchList.find(b => b.id === damageForm.batch)
+  const newDamage = createDamageRecord({
+    batch: damageForm.batch,
+    product: batch?.name || '',
+    type: damageForm.type,
+    quantity: damageForm.quantity,
+    lossAmount: damageForm.lossAmount,
+    location: damageForm.location,
+    reason: damageForm.reason,
+    operator: '王仓管'
+  })
+  ElMessage.success(`损耗记录 ${newDamage.id} 已登记`)
   showDamageDialog.value = false
+  damageForm.batch = ''
+  damageForm.type = '变质'
+  damageForm.quantity = 0
+  damageForm.lossAmount = 0
+  damageForm.location = ''
+  damageForm.reason = ''
 }
 </script>
 

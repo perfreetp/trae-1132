@@ -86,7 +86,7 @@
               </div>
 
               <div v-if="selectedStore" class="table-dark">
-                <el-table :data="signOrders" stripe style="width: 100%">
+                <el-table :data="filteredSignOrders" stripe style="width: 100%">
                   <el-table-column prop="orderNo" label="配送单号" width="140" />
                   <el-table-column prop="batch" label="批次号" width="160" />
                   <el-table-column prop="product" label="产品名称" min-width="160" />
@@ -194,7 +194,7 @@
         <div class="card-dark">
           <div style="font-size:16px;font-weight:600;color:#f1f5f9;margin-bottom:16px;">近期评价记录</div>
           <div class="table-dark">
-            <el-table :data="rateRecords" stripe style="width: 100%">
+            <el-table :data="sharedRateRecords" stripe style="width: 100%">
               <el-table-column prop="id" label="记录编号" width="140" />
               <el-table-column prop="carrier" label="承运商" width="130" />
               <el-table-column prop="batch" label="关联批次" width="160" />
@@ -313,7 +313,7 @@
 <script setup>
 import { ref, computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { storeList, carrierList, batchList } from '@/data/mockData'
+import { storeList, carrierList, batchList, signOrders as sharedSignOrders, rateRecords as sharedRateRecords, createRateRecord } from '@/data/mockData'
 
 const activeTab = ref('sign')
 const signFilter = ref('')
@@ -325,18 +325,13 @@ const currentOrder = ref(null)
 const todaySigned = computed(() => storeList.reduce((sum, s) => sum + s.todaySign, 0))
 const pendingSign = computed(() => storeList.reduce((sum, s) => sum + s.pendingCount, 0))
 
-const signOrders = [
-  { orderNo: 'D20240607001', batch: 'B20240607005', product: '浙江舟山带鱼', quantity: 500, unit: 'kg', vehicle: '浙B·33333', driver: '陈师傅', temperature: -15.2, tempOk: true, expectTime: '2024-06-07 16:00:00', status: 'pending', statusText: '待签收' },
-  { orderNo: 'D20240607002', batch: 'B20240607001', product: '山东烟台红富士苹果', quantity: 800, unit: 'kg', vehicle: '沪A·12345', driver: '李师傅', temperature: 2.5, tempOk: true, expectTime: '2024-06-07 18:30:00', status: 'transit', statusText: '配送中' },
-  { orderNo: 'D20240607003', batch: 'B20240607003', product: '云南昆明鲜花玫瑰', quantity: 200, unit: '束', vehicle: '云A·11111', driver: '张师傅', temperature: 6.5, tempOk: false, expectTime: '2024-06-07 22:00:00', status: 'exception', statusText: '有异常' },
-  { orderNo: 'D20240606005', batch: 'B20240606003', product: '海南三亚芒果', quantity: 600, unit: 'kg', vehicle: '粤B·88888', driver: '刘师傅', temperature: 8.0, tempOk: true, expectTime: '2024-06-06 15:00:00', status: 'signed', statusText: '已签收' }
-]
-
-const rateRecords = [
-  { id: 'R20240607001', carrier: '顺丰冷链', batch: 'B20240606001', store: '上海浦东店', rating: 5, timeliness: 5, service: 5, quality: 4, comment: '配送准时，货物保存良好', time: '2024-06-07 10:30:00' },
-  { id: 'R20240607002', carrier: '京东冷链', batch: 'B20240606002', store: '广州天河店', rating: 4, timeliness: 4, service: 5, quality: 4, comment: '整体满意，司机服务态度好', time: '2024-06-07 09:15:00' },
-  { id: 'R20240606003', carrier: '中通冷链', batch: 'B20240605001', store: '北京朝阳店', rating: 3, timeliness: 3, service: 4, quality: 3, comment: '配送稍有延误，货物质量尚可', time: '2024-06-06 16:20:00' }
-]
+const filteredSignOrders = computed(() => {
+  let orders = sharedSignOrders.filter(o => o.storeId === selectedStore.value?.id || !o.storeId)
+  if (signFilter.value) {
+    orders = orders.filter(o => o.status === signFilter.value)
+  }
+  return orders
+})
 
 const signForm = reactive({
   receivedQty: 0,
@@ -380,13 +375,45 @@ const rateCarrier = (carrier) => {
 }
 
 const confirmSign = () => {
-  ElMessage.success('签收成功')
+  if (!currentOrder.value) return
+  
+  const hasException = 
+    signForm.receivedQty < currentOrder.value.quantity || 
+    !signForm.tempOk || 
+    !signForm.packageOk || 
+    !signForm.noDamage
+
+  currentOrder.value.status = hasException ? 'exception' : 'signed'
+  currentOrder.value.statusText = hasException ? '有异常' : '已签收'
+  currentOrder.value.tempOk = signForm.tempOk
+  currentOrder.value.remark = signForm.remark
+
+  if (selectedStore.value) {
+    selectedStore.value.todaySign += 1
+    if (selectedStore.value.pendingCount > 0) {
+      selectedStore.value.pendingCount -= 1
+    }
+  }
+
+  ElMessage.success(hasException ? '签收成功，已标记异常' : '签收成功')
   showSignDialog.value = false
 }
 
 const submitRate = () => {
+  if (!rateForm.carrier || !rateForm.batch || !rateForm.store) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+  createRateRecord(rateForm)
   ElMessage.success('评价已提交')
   showRateDialog.value = false
+  rateForm.carrier = ''
+  rateForm.batch = ''
+  rateForm.store = ''
+  rateForm.timeliness = 4
+  rateForm.service = 4
+  rateForm.quality = 4
+  rateForm.comment = ''
 }
 </script>
 

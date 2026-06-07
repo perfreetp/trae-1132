@@ -1,6 +1,7 @@
+import { reactive } from 'vue'
 import dayjs from 'dayjs'
 
-export const batchList = [
+export const batchList = reactive([
   {
     id: 'B20240607001',
     name: '山东烟台红富士苹果',
@@ -97,9 +98,9 @@ export const batchList = [
     createTime: '2024-06-01 11:00:00',
     vehicle: '粤C·44444'
   }
-]
+])
 
-export const vehicleList = [
+export const vehicleList = reactive([
   {
     id: 'V001',
     plate: '沪A·12345',
@@ -180,9 +181,9 @@ export const vehicleList = [
     batch: 'B20240607005',
     cargo: '浙江舟山带鱼 4500kg'
   }
-]
+])
 
-export const warehouseList = [
+export const warehouseList = reactive([
   {
     id: 'W001',
     name: '华东中心仓',
@@ -219,7 +220,7 @@ export const warehouseList = [
     temperatureZones: ['冷藏(0-4℃)', '冷冻(-18℃)', '恒温(15-20℃)'],
     status: 'normal'
   }
-]
+])
 
 export const locationList = [
   { name: '山东烟台产地A', type: 'origin', x: 280, y: 120 },
@@ -238,7 +239,7 @@ export const locationList = [
   { name: '重庆渝中店', type: 'store', x: 160, y: 290 }
 ]
 
-export const exceptionList = [
+export const exceptionList = reactive([
   {
     id: 'E001',
     type: 'temperature',
@@ -311,9 +312,9 @@ export const exceptionList = [
     handler: '张值班',
     description: '高速路段拥堵，预计延误2小时'
   }
-]
+])
 
-export const storeList = [
+export const storeList = reactive([
   {
     id: 'S001',
     name: '上海浦东店',
@@ -354,9 +355,9 @@ export const storeList = [
     todaySign: 5,
     pendingCount: 0
   }
-]
+])
 
-export const carrierList = [
+export const carrierList = reactive([
   {
     id: 'C001',
     name: '顺丰冷链',
@@ -390,9 +391,9 @@ export const carrierList = [
     rating: 4.2,
     status: 'cooperating'
   }
-]
+])
 
-export const expenseList = [
+export const expenseList = reactive([
   {
     id: 'F001',
     date: '2024-06-07',
@@ -445,7 +446,60 @@ export const expenseList = [
     status: 'confirmed',
     statusText: '已确认'
   }
-]
+])
+
+export const signOrders = reactive([
+  { orderNo: 'D20240607001', batch: 'B20240607005', product: '浙江舟山带鱼', quantity: 500, unit: 'kg', vehicle: '浙B·33333', driver: '陈师傅', temperature: -15.2, tempOk: true, expectTime: '2024-06-07 16:00:00', status: 'pending', statusText: '待签收', storeId: 'S001', remark: '' },
+  { orderNo: 'D20240607002', batch: 'B20240607001', product: '山东烟台红富士苹果', quantity: 800, unit: 'kg', vehicle: '沪A·12345', driver: '李师傅', temperature: 2.5, tempOk: true, expectTime: '2024-06-07 18:30:00', status: 'transit', statusText: '配送中', storeId: 'S001', remark: '' },
+  { orderNo: 'D20240607003', batch: 'B20240607003', product: '云南昆明鲜花玫瑰', quantity: 200, unit: '束', vehicle: '云A·11111', driver: '张师傅', temperature: 6.5, tempOk: false, expectTime: '2024-06-07 22:00:00', status: 'exception', statusText: '有异常', storeId: 'S001', remark: '' },
+  { orderNo: 'D20240606005', batch: 'B20240606003', product: '海南三亚芒果', quantity: 600, unit: 'kg', vehicle: '粤B·88888', driver: '刘师傅', temperature: 8.0, tempOk: true, expectTime: '2024-06-06 15:00:00', status: 'signed', statusText: '已签收', storeId: 'S001', remark: '' }
+])
+
+export const loadingTasks = reactive([
+  { taskNo: 'L20240607001', type: '入库', batch: 'B20240607001', product: '山东烟台红富士苹果', warehouse: '华东中心仓', vehicle: '沪A·12345', tempOk: true, packageOk: true, operator: '王仓管', time: '2024-06-07 08:30:00', status: 'normal', statusText: '已完成' },
+  { taskNo: 'L20240607002', type: '入库', batch: 'B20240607004', product: '内蒙古草原羊肉', warehouse: '华北中心仓', vehicle: '蒙A·22222', tempOk: true, packageOk: false, operator: '李仓管', time: '2024-06-07 09:15:00', status: 'warning', statusText: '待复检' },
+  { taskNo: 'L20240607003', type: '出库', batch: 'B20240607005', product: '浙江舟山带鱼', warehouse: '华东中心仓', vehicle: '浙B·33333', tempOk: true, packageOk: true, operator: '张仓管', time: '2024-06-07 10:00:00', status: 'normal', statusText: '已完成' },
+  { taskNo: 'L20240607004', type: '入库', batch: 'B20240607002', product: '海南三亚妃子笑荔枝', warehouse: '华南中心仓', vehicle: '粤B·67890', tempOk: true, packageOk: true, operator: '赵仓管', time: '2024-06-07 11:30:00', status: 'info', statusText: '进行中' },
+  { taskNo: 'L20240607005', type: '出库', batch: 'B20240607003', product: '云南昆明鲜花玫瑰', warehouse: '西南中心仓', vehicle: '云A·11111', tempOk: false, packageOk: true, operator: '孙仓管', time: '2024-06-07 12:00:00', status: 'danger', statusText: '异常' }
+])
+
+export const damageRecords = reactive([
+  { id: 'D20240607001', batch: 'B20240607002', product: '海南三亚妃子笑荔枝', type: '破损', quantity: 150, unit: 'kg', lossAmount: 4500, location: '装卸作业', reason: '人工卸车时部分包装箱挤压变形', operator: '李仓管', time: '2024-06-07 09:30:00' },
+  { id: 'D20240607002', batch: 'B20240607003', product: '云南昆明鲜花玫瑰', type: '变质', quantity: 50, unit: '束', lossAmount: 2500, location: '运输途中', reason: '制冷设备短暂停机导致温度回升', operator: '张值班', time: '2024-06-07 10:45:00' },
+  { id: 'D20240606001', batch: 'B20240606005', product: '浙江舟山带鱼', type: '其他', quantity: 30, unit: 'kg', lossAmount: 900, location: '仓储期间', reason: '库内风机故障导致局部温度波动', operator: '王仓管', time: '2024-06-06 16:20:00' }
+])
+
+export const allocatedLocations = reactive([])
+
+export const rateRecords = reactive([
+  { id: 'R20240607001', carrier: '顺丰冷链', batch: 'B20240606001', store: '上海浦东店', rating: 5, timeliness: 5, service: 5, quality: 4, comment: '配送准时，货物保存良好', time: '2024-06-07 10:30:00' },
+  { id: 'R20240607002', carrier: '京东冷链', batch: 'B20240606002', store: '广州天河店', rating: 4, timeliness: 4, service: 5, quality: 4, comment: '整体满意，司机服务态度好', time: '2024-06-07 09:15:00' },
+  { id: 'R20240606003', carrier: '中通冷链', batch: 'B20240605001', store: '北京朝阳店', rating: 3, timeliness: 3, service: 4, quality: 3, comment: '配送稍有延误，货物质量尚可', time: '2024-06-06 16:20:00' }
+])
+
+export const dutyNotes = reactive([
+  {
+    id: 'N001',
+    time: '2024-06-07 08:00:00',
+    author: '张值班',
+    content: '今日早班交接，系统运行正常，在途车辆5台，异常2项待处理',
+    type: 'handover'
+  },
+  {
+    id: 'N002',
+    time: '2024-06-07 09:30:00',
+    author: '张值班',
+    content: '处理B20240607003批次温度异常，已联系司机检查制冷设备，温度已恢复正常',
+    type: 'handle'
+  },
+  {
+    id: 'N003',
+    time: '2024-06-07 10:15:00',
+    author: '张值班',
+    content: 'B20240607006批次生蚝临期，已协调门店紧急配送，预计今日下午完成',
+    type: 'coordination'
+  }
+])
 
 export const generateTempData = () => {
   const data = []
@@ -469,26 +523,125 @@ export const generateHumidityData = () => {
   return data
 }
 
-export const dutyNotes = [
-  {
-    id: 'N001',
-    time: '2024-06-07 08:00:00',
-    author: '张值班',
-    content: '今日早班交接，系统运行正常，在途车辆5台，异常2项待处理',
-    type: 'handover'
-  },
-  {
-    id: 'N002',
-    time: '2024-06-07 09:30:00',
-    author: '张值班',
-    content: '处理B20240607003批次温度异常，已联系司机检查制冷设备，温度已恢复正常',
-    type: 'handle'
-  },
-  {
-    id: 'N003',
-    time: '2024-06-07 10:15:00',
-    author: '张值班',
-    content: 'B20240607006批次生蚝临期，已协调门店紧急配送，预计今日下午完成',
-    type: 'coordination'
+let batchCounter = 7
+export const createBatch = (formData) => {
+  const newBatch = {
+    id: `B20240607${String(batchCounter).padStart(3, '0')}`,
+    name: formData.name,
+    origin: formData.origin,
+    warehouse: formData.warehouse,
+    quantity: formData.quantity,
+    unit: formData.unit,
+    temperature: Number((2 + Math.random() * 2).toFixed(1)),
+    humidity: Math.round(82 + Math.random() * 8),
+    shelfLife: formData.shelfLife,
+    remainingDays: formData.shelfLife,
+    status: 'transit',
+    statusText: '运输中',
+    createTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    vehicle: formData.vehicle
   }
-]
+  batchCounter++
+  batchList.unshift(newBatch)
+  return newBatch
+}
+
+let exceptionCounter = 5
+export const createException = (formData) => {
+  const typeTextMap = {
+    temperature: '温度异常',
+    humidity: '湿度异常',
+    damage: '损耗异常',
+    equipment: '设备故障',
+    delay: '配送延误',
+    other: '其他异常'
+  }
+  const levelTextMap = {
+    info: '提示',
+    warning: '警告',
+    danger: '紧急'
+  }
+  const batch = batchList.find(b => b.id === formData.batch)
+  const newException = {
+    id: `E00${exceptionCounter}`,
+    type: formData.type,
+    typeText: typeTextMap[formData.type] || '异常',
+    batch: formData.batch,
+    product: batch?.name || '未知产品',
+    location: formData.location,
+    vehicle: batch?.vehicle || '-',
+    value: formData.value || 0,
+    threshold: formData.threshold || '-',
+    level: formData.level,
+    levelText: levelTextMap[formData.level] || '提示',
+    time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    status: 'pending',
+    statusText: '待处理',
+    handler: '',
+    description: formData.description
+  }
+  exceptionCounter++
+  exceptionList.unshift(newException)
+  return newException
+}
+
+let loadingCounter = 6
+export const createLoadingTask = (formData) => {
+  const newTask = {
+    taskNo: `L2024060700${loadingCounter}`,
+    type: formData.type,
+    batch: formData.batch,
+    product: batchList.find(b => b.id === formData.batch)?.name || '-',
+    warehouse: formData.warehouse,
+    vehicle: formData.vehicle,
+    tempOk: formData.temperature >= 0 && formData.temperature <= 4,
+    packageOk: formData.packageIntact && formData.noDamage && formData.sealed,
+    operator: '张值班',
+    time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    status: 'info',
+    statusText: '进行中'
+  }
+  loadingCounter++
+  loadingTasks.unshift(newTask)
+  return newTask
+}
+
+let damageCounter = 3
+export const createDamageRecord = (formData) => {
+  const batch = batchList.find(b => b.id === formData.batch)
+  const newRecord = {
+    id: `D2024060700${damageCounter}`,
+    batch: formData.batch,
+    product: batch?.name || '-',
+    type: formData.type,
+    quantity: formData.quantity,
+    unit: batch?.unit || 'kg',
+    lossAmount: formData.lossAmount,
+    location: formData.location,
+    reason: formData.reason,
+    operator: '张值班',
+    time: dayjs().format('YYYY-MM-DD HH:mm:ss')
+  }
+  damageCounter++
+  damageRecords.unshift(newRecord)
+  return newRecord
+}
+
+let rateCounter = 4
+export const createRateRecord = (formData) => {
+  const newRecord = {
+    id: `R2024060700${rateCounter}`,
+    carrier: formData.carrier,
+    batch: formData.batch,
+    store: formData.store,
+    rating: Math.round((formData.timeliness + formData.service + formData.quality) / 3),
+    timeliness: formData.timeliness,
+    service: formData.service,
+    quality: formData.quality,
+    comment: formData.comment,
+    time: dayjs().format('YYYY-MM-DD HH:mm:ss')
+  }
+  rateCounter++
+  rateRecords.unshift(newRecord)
+  return newRecord
+}

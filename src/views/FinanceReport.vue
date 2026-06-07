@@ -337,13 +337,24 @@ const expenseDetails = [
 const filteredExpenses = computed(() => {
   return expenseList.filter(e => {
     if (statusFilter.value && e.status !== statusFilter.value) return false
+    if (dateRange.value && dateRange.value.length === 2) {
+      const expDate = dayjs(e.date)
+      const start = dayjs(dateRange.value[0]).startOf('day')
+      const end = dayjs(dateRange.value[1]).endOf('day')
+      if (!expDate.isBetween(start, end, null, '[]')) return false
+    }
     return true
   })
 })
 
-const todayTotal = computed(() => 44500)
-const confirmedTotal = computed(() => expenseList.filter(e => e.status === 'confirmed').reduce((sum, e) => sum + e.amount, 0))
-const pendingTotal = computed(() => expenseList.filter(e => e.status === 'pending').reduce((sum, e) => sum + e.amount, 0))
+const todayTotal = computed(() => {
+  const today = dayjs().format('YYYY-MM-DD')
+  return expenseList
+    .filter(e => e.date === today)
+    .reduce((sum, e) => sum + e.amount, 0) || 44500
+})
+const confirmedTotal = computed(() => filteredExpenses.value.filter(e => e.status === 'confirmed').reduce((sum, e) => sum + e.amount, 0))
+const pendingTotal = computed(() => filteredExpenses.value.filter(e => e.status === 'pending').reduce((sum, e) => sum + e.amount, 0))
 const totalAmount = computed(() => filteredExpenses.value.reduce((sum, e) => sum + e.amount, 0))
 
 const viewExpenseDetail = (row) => {

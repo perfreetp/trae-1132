@@ -211,7 +211,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
-import { batchList, generateTempData, generateHumidityData } from '@/data/mockData'
+import { batchList, generateTempData, generateHumidityData, createBatch as addNewBatch } from '@/data/mockData'
 
 const searchKeyword = ref('')
 const selectedBatch = ref(batchList[0]?.id || '')
@@ -264,8 +264,23 @@ const viewDetail = (row) => {
 }
 
 const createBatch = () => {
-  ElMessage.success('批次创建成功')
+  if (!batchForm.value.name || !batchForm.value.origin || !batchForm.value.warehouse) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+  const newBatch = addNewBatch(batchForm.value)
+  selectedBatch.value = newBatch.id
+  ElMessage.success(`批次 ${newBatch.id} 创建成功`)
   showCreateDialog.value = false
+  batchForm.value = {
+    name: '',
+    origin: '',
+    warehouse: '',
+    quantity: 1000,
+    unit: 'kg',
+    shelfLife: 30,
+    vehicle: ''
+  }
 }
 
 const initTempChart = () => {
