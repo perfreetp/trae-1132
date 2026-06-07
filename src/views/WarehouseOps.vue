@@ -138,14 +138,10 @@
                 <div v-for="zone in selectedWarehouse.temperatureZones" :key="zone" class="zone-section">
                   <div class="zone-title">{{ zone }}</div>
                   <div class="zone-grid">
-                    <div v-for="i in 12" :key="i" class="location-cell"
-                      :class="{ 
-                        occupied: isLocationOccupied(i-1),
-                        empty: !isLocationOccupied(i-1) && locationStatus[i-1] === 'empty',
-                        reserved: locationStatus[i-1] === 'reserved' && !allocatedLocations.some(a => a.location === allLocations[i-1]?.id)
-                      }"
+                    <div v-for="i in 6" :key="i" class="location-cell"
+                      :class="getLocationCellClass(zone, i)"
                       @click="viewLocationDetail(zone, i)">
-                      <span class="cell-code">{{ zone.substring(0,2) }}-{{ String(i).padStart(2, '0') }}</span>
+                      <span class="cell-code">{{ getLocationCode(zone, i) }}</span>
                     </div>
                   </div>
                 </div>
@@ -373,10 +369,22 @@ const showCheckDialog = ref(false)
 const showAllocateDialog = ref(false)
 const showDamageDialog = ref(false)
 
-const locationStatus = reactive([
-  'occupied', 'occupied', 'empty', 'reserved', 'occupied', 'empty',
-  'empty', 'occupied', 'occupied', 'empty', 'empty', 'reserved'
-])
+const warehouseLocationStatus = reactive({
+  W001: ['occupied', 'occupied', 'empty', 'reserved', 'occupied', 'empty', 'empty', 'occupied', 'occupied', 'empty', 'empty', 'reserved', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
+  W002: ['empty', 'empty', 'occupied', 'empty', 'empty', 'empty', 'occupied', 'empty', 'empty', 'empty', 'reserved', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'],
+  W003: ['empty', 'occupied', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'occupied', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'reserved'],
+  W004: ['empty', 'empty', 'empty', 'occupied', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'occupied', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty']
+})
+
+const getLocationStatus = (warehouseId, idx) => {
+  return warehouseLocationStatus[warehouseId]?.[idx] || 'empty'
+}
+
+const setLocationStatus = (warehouseId, idx, status) => {
+  if (warehouseLocationStatus[warehouseId]) {
+    warehouseLocationStatus[warehouseId][idx] = status
+  }
+}
 
 const allLocations = [
   { id: '冷藏-01', zone: '冷藏(0-4℃)', index: 0 },
@@ -390,7 +398,13 @@ const allLocations = [
   { id: '冷冻-03', zone: '冷冻(-18℃)', index: 8 },
   { id: '冷冻-04', zone: '冷冻(-18℃)', index: 9 },
   { id: '冷冻-05', zone: '冷冻(-18℃)', index: 10 },
-  { id: '冷冻-06', zone: '冷冻(-18℃)', index: 11 }
+  { id: '冷冻-06', zone: '冷冻(-18℃)', index: 11 },
+  { id: '恒温-01', zone: '恒温(15-20℃)', index: 12 },
+  { id: '恒温-02', zone: '恒温(15-20℃)', index: 13 },
+  { id: '恒温-03', zone: '恒温(15-20℃)', index: 14 },
+  { id: '恒温-04', zone: '恒温(15-20℃)', index: 15 },
+  { id: '恒温-05', zone: '恒温(15-20℃)', index: 16 },
+  { id: '恒温-06', zone: '恒温(15-20℃)', index: 17 }
 ]
 
 const availableLocations = computed(() => {
@@ -398,16 +412,45 @@ const availableLocations = computed(() => {
   if (allocateForm.zone) {
     locs = locs.filter(loc => loc.zone === allocateForm.zone)
   }
+  const whId = selectedWarehouse.value?.id
   return locs.filter(loc => {
-    const allocated = allocatedLocations.find(a => a.location === loc.id)
-    return !allocated && locationStatus[loc.index] === 'empty'
+    const allocated = allocatedLocations.find(a => a.warehouseId === whId && a.location === loc.id)
+    return !allocated && getLocationStatus(whId, loc.index) === 'empty'
   })
 })
 
 const isLocationOccupied = (idx) => {
+  const whId = selectedWarehouse.value?.id
   const loc = allLocations[idx]
-  if (locationStatus[idx] === 'occupied' || locationStatus[idx] === 'reserved') return true
-  return allocatedLocations.some(a => a.location === loc.id)
+  if (!whId || !loc) return false
+  if (getLocationStatus(whId, idx) === 'occupied' || getLocationStatus(whId, idx) === 'reserved') return true
+  return allocatedLocations.some(a => a.warehouseId === whId && a.location === loc.id)
+}
+
+const getZoneStartIndex = (zone) => {
+  if (zone.startsWith('冷藏')) return 0
+  if (zone.startsWith('冷冻')) return 6
+  if (zone.startsWith('恒温')) return 12
+  return 0
+}
+
+const getLocationCode = (zone, i) => {
+  const prefix = zone.substring(0, 2)
+  return `${prefix}-${String(i).padStart(2, '0')}`
+}
+
+const getLocationCellClass = (zone, i) => {
+  const startIdx = getZoneStartIndex(zone)
+  const idx = startIdx + i - 1
+  const occupied = isLocationOccupied(idx)
+  const whId = selectedWarehouse.value?.id
+  const status = getLocationStatus(whId, idx)
+  const reserved = status === 'reserved' && !allocatedLocations.some(a => a.warehouseId === whId && a.location === allLocations[idx]?.id)
+  return {
+    occupied,
+    empty: !occupied && status === 'empty',
+    reserved
+  }
 }
 
 const checkForm = reactive({
@@ -491,18 +534,20 @@ const submitAllocate = () => {
     ElMessage.warning('请填写完整信息')
     return
   }
+  const whId = selectedWarehouse.value?.id
   const locInfo = allLocations.find(l => l.id === allocateForm.location)
-  if (locInfo) {
-    locationStatus[locInfo.index] = 'occupied'
+  if (locInfo && whId) {
+    setLocationStatus(whId, locInfo.index, 'occupied')
   }
   allocatedLocations.push({
     id: 'A' + Date.now(),
+    warehouseId: whId,
+    warehouse: selectedWarehouse.value?.name || '',
     batch: allocateForm.batch,
     zone: allocateForm.zone,
     location: allocateForm.location,
     quantity: allocateForm.quantity,
     operator: '王仓管',
-    warehouse: selectedWarehouse.value?.name || '',
     time: dayjs().format('YYYY-MM-DD HH:mm:ss')
   })
   ElMessage.success(`库位 ${allocateForm.location} 分配成功`)
