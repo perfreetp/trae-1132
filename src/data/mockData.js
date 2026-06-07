@@ -591,15 +591,15 @@ export const createLoadingTask = (formData) => {
     taskNo: `L2024060700${loadingCounter}`,
     type: formData.type,
     batch: formData.batch,
-    product: batchList.find(b => b.id === formData.batch)?.name || '-',
+    product: formData.product || batchList.find(b => b.id === formData.batch)?.name || '-',
     warehouse: formData.warehouse,
     vehicle: formData.vehicle,
-    tempOk: formData.temperature >= 0 && formData.temperature <= 4,
-    packageOk: formData.packageIntact && formData.noDamage && formData.sealed,
-    operator: '张值班',
+    tempOk: formData.tempOk !== undefined ? formData.tempOk : (formData.temperature >= 0 && formData.temperature <= 4),
+    packageOk: formData.packageOk !== undefined ? formData.packageOk : (formData.packageIntact && formData.noDamage && formData.sealed),
+    operator: formData.operator || '张值班',
     time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-    status: 'info',
-    statusText: '进行中'
+    status: formData.status || 'info',
+    statusText: formData.statusText || '进行中'
   }
   loadingCounter++
   loadingTasks.unshift(newTask)

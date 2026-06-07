@@ -140,9 +140,9 @@
                   <div class="zone-grid">
                     <div v-for="i in 12" :key="i" class="location-cell"
                       :class="{ 
-                        occupied: locationStatus[i-1] === 'occupied',
-                        empty: locationStatus[i-1] === 'empty',
-                        reserved: locationStatus[i-1] === 'reserved'
+                        occupied: isLocationOccupied(i-1),
+                        empty: !isLocationOccupied(i-1) && locationStatus[i-1] === 'empty',
+                        reserved: locationStatus[i-1] === 'reserved' && !allocatedLocations.some(a => a.location === allLocations[i-1]?.id)
                       }"
                       @click="viewLocationDetail(zone, i)">
                       <span class="cell-code">{{ zone.substring(0,2) }}-{{ String(i).padStart(2, '0') }}</span>
@@ -379,26 +379,36 @@ const locationStatus = reactive([
 ])
 
 const allLocations = [
-  { id: '冷藏-01', zone: '冷藏', index: 0 },
-  { id: '冷藏-02', zone: '冷藏', index: 1 },
-  { id: '冷藏-03', zone: '冷藏', index: 2 },
-  { id: '冷藏-04', zone: '冷藏', index: 3 },
-  { id: '冷藏-05', zone: '冷藏', index: 4 },
-  { id: '冷藏-06', zone: '冷藏', index: 5 },
-  { id: '冷冻-01', zone: '冷冻', index: 6 },
-  { id: '冷冻-02', zone: '冷冻', index: 7 },
-  { id: '冷冻-03', zone: '冷冻', index: 8 },
-  { id: '冷冻-04', zone: '冷冻', index: 9 },
-  { id: '冷冻-05', zone: '冷冻', index: 10 },
-  { id: '冷冻-06', zone: '冷冻', index: 11 }
+  { id: '冷藏-01', zone: '冷藏(0-4℃)', index: 0 },
+  { id: '冷藏-02', zone: '冷藏(0-4℃)', index: 1 },
+  { id: '冷藏-03', zone: '冷藏(0-4℃)', index: 2 },
+  { id: '冷藏-04', zone: '冷藏(0-4℃)', index: 3 },
+  { id: '冷藏-05', zone: '冷藏(0-4℃)', index: 4 },
+  { id: '冷藏-06', zone: '冷藏(0-4℃)', index: 5 },
+  { id: '冷冻-01', zone: '冷冻(-18℃)', index: 6 },
+  { id: '冷冻-02', zone: '冷冻(-18℃)', index: 7 },
+  { id: '冷冻-03', zone: '冷冻(-18℃)', index: 8 },
+  { id: '冷冻-04', zone: '冷冻(-18℃)', index: 9 },
+  { id: '冷冻-05', zone: '冷冻(-18℃)', index: 10 },
+  { id: '冷冻-06', zone: '冷冻(-18℃)', index: 11 }
 ]
 
 const availableLocations = computed(() => {
-  return allLocations.filter(loc => {
+  let locs = allLocations
+  if (allocateForm.zone) {
+    locs = locs.filter(loc => loc.zone === allocateForm.zone)
+  }
+  return locs.filter(loc => {
     const allocated = allocatedLocations.find(a => a.location === loc.id)
-    return !allocated
+    return !allocated && locationStatus[loc.index] === 'empty'
   })
 })
+
+const isLocationOccupied = (idx) => {
+  const loc = allLocations[idx]
+  if (locationStatus[idx] === 'occupied' || locationStatus[idx] === 'reserved') return true
+  return allocatedLocations.some(a => a.location === loc.id)
+}
 
 const checkForm = reactive({
   type: '入库',
@@ -482,7 +492,7 @@ const submitAllocate = () => {
     return
   }
   const locInfo = allLocations.find(l => l.id === allocateForm.location)
-  if (locInfo && locationStatus[locInfo.index] === 'empty') {
+  if (locInfo) {
     locationStatus[locInfo.index] = 'occupied'
   }
   allocatedLocations.push({
@@ -492,6 +502,7 @@ const submitAllocate = () => {
     location: allocateForm.location,
     quantity: allocateForm.quantity,
     operator: '王仓管',
+    warehouse: selectedWarehouse.value?.name || '',
     time: dayjs().format('YYYY-MM-DD HH:mm:ss')
   })
   ElMessage.success(`库位 ${allocateForm.location} 分配成功`)

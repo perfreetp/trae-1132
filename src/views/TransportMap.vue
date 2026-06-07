@@ -45,7 +45,7 @@
       <el-col :span="4">
         <div class="stat-card" style="border-color: #ef4444;">
           <el-icon :size="28" color="#ef4444"><Warning /></el-icon>
-          <div class="stat-value" style="font-size:28px;color:#ef4444;">1</div>
+          <div class="stat-value" style="font-size:28px;color:#ef4444;">{{ warningCount }}</div>
           <div class="stat-label">异常车辆</div>
         </div>
       </el-col>
@@ -152,13 +152,16 @@
               @click="selectVehicle(v)">
               <div class="flex-between">
                 <span class="vehicle-plate">{{ v.plate }}</span>
-                <el-tag :class="'status-' + (v.status === 'transit' ? 'normal' : v.status === 'warning' ? 'warning' : 'info')" size="small">
-                  {{ v.statusText }}
+                <el-tag :class="'status-' + (v.status === 'transit' ? 'normal' : (v.status === 'warning' || v.temperature > 5) ? 'warning' : 'info')" size="small">
+                  {{ (v.status === 'warning' || v.temperature > 5) ? '异常' : v.statusText }}
                 </el-tag>
               </div>
               <div class="vehicle-info">
                 <span><el-icon><User /></el-icon> {{ v.driver }}</span>
                 <span><el-icon><Phone /></el-icon> {{ v.phone }}</span>
+              </div>
+              <div v-if="getVehicleWarningReason(v)" class="vehicle-warning" style="font-size: 12px; color: #f59e0b; margin-top: 4px;">
+                <el-icon><Warning /></el-icon> {{ getVehicleWarningReason(v) }}
               </div>
               <div class="vehicle-loc">
                 <el-icon><Location /></el-icon>
@@ -248,7 +251,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { vehicleList, locationList } from '@/data/mockData'
 
@@ -267,6 +270,7 @@ const bookingForm = ref({
 const transitCount = computed(() => vehicleList.filter(v => v.status === 'transit').length)
 const loadingCount = computed(() => vehicleList.filter(v => v.status === 'loading' || v.status === 'unloading').length)
 const deliveryCount = computed(() => vehicleList.filter(v => v.status === 'delivery').length)
+const warningCount = computed(() => vehicleList.filter(v => v.status === 'warning' || v.temperature > 5).length)
 
 const filteredVehicles = computed(() => {
   if (mapView.value === 'all') return vehicleList
@@ -274,6 +278,23 @@ const filteredVehicles = computed(() => {
   if (mapView.value === 'warning') return vehicleList.filter(v => v.status === 'warning' || v.temperature > 5)
   return vehicleList
 })
+
+const getVehicleWarningReason = (v) => {
+  if (v.temperature > 5) return `温度超标: ${v.temperature}℃`
+  if (v.status === 'warning') return '配送异常'
+  return ''
+}
+
+watch([mapView, filteredVehicles], () => {
+  if (filteredVehicles.value.length > 0) {
+    const found = filteredVehicles.value.find(v => v.id === selectedVehicle.value?.id)
+    if (!found) {
+      selectedVehicle.value = filteredVehicles.value[0]
+    }
+  } else {
+    selectedVehicle.value = null
+  }
+}, { immediate: true })
 
 const vehiclePositions = {
   'V001': { x: 300, y: 145 },

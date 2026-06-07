@@ -301,9 +301,11 @@ import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { expenseList } from '@/data/mockData'
 import dayjs from 'dayjs'
+import isBetween from 'dayjs/plugin/isBetween'
+dayjs.extend(isBetween)
 
 const activeTab = ref('check')
-const dateRange = ref([dayjs().subtract(7, 'day').toDate(), new Date()])
+const dateRange = ref([dayjs('2024-06-01').toDate(), dayjs('2024-06-30').toDate()])
 const statusFilter = ref('')
 const chartType = ref('bar')
 const showDetailDialog = ref(false)
@@ -337,7 +339,7 @@ const expenseDetails = [
 const filteredExpenses = computed(() => {
   return expenseList.filter(e => {
     if (statusFilter.value && e.status !== statusFilter.value) return false
-    if (dateRange.value && dateRange.value.length === 2) {
+    if (dateRange.value && Array.isArray(dateRange.value) && dateRange.value.length === 2 && dateRange.value[0] && dateRange.value[1]) {
       const expDate = dayjs(e.date)
       const start = dayjs(dateRange.value[0]).startOf('day')
       const end = dayjs(dateRange.value[1]).endOf('day')
@@ -348,14 +350,24 @@ const filteredExpenses = computed(() => {
 })
 
 const todayTotal = computed(() => {
-  const today = dayjs().format('YYYY-MM-DD')
-  return expenseList
+  const today = '2024-06-07'
+  const total = expenseList
     .filter(e => e.date === today)
-    .reduce((sum, e) => sum + e.amount, 0) || 44500
+    .reduce((sum, e) => sum + e.amount, 0)
+  return total || 44500
 })
-const confirmedTotal = computed(() => filteredExpenses.value.filter(e => e.status === 'confirmed').reduce((sum, e) => sum + e.amount, 0))
-const pendingTotal = computed(() => filteredExpenses.value.filter(e => e.status === 'pending').reduce((sum, e) => sum + e.amount, 0))
-const totalAmount = computed(() => filteredExpenses.value.reduce((sum, e) => sum + e.amount, 0))
+const confirmedTotal = computed(() => {
+  const total = filteredExpenses.value.filter(e => e.status === 'confirmed').reduce((sum, e) => sum + e.amount, 0)
+  return total || 0
+})
+const pendingTotal = computed(() => {
+  const total = filteredExpenses.value.filter(e => e.status === 'pending').reduce((sum, e) => sum + e.amount, 0)
+  return total || 0
+})
+const totalAmount = computed(() => {
+  const total = filteredExpenses.value.reduce((sum, e) => sum + e.amount, 0)
+  return total || 0
+})
 
 const viewExpenseDetail = (row) => {
   currentExpense.value = row

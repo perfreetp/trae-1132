@@ -52,9 +52,12 @@
               <el-select v-model="typeFilter" placeholder="类型筛选" size="default" style="width: 130px;">
                 <el-option label="全部" value="" />
                 <el-option label="温度异常" value="temperature" />
+                <el-option label="湿度异常" value="humidity" />
                 <el-option label="临期预警" value="shelfLife" />
                 <el-option label="损耗异常" value="damage" />
+                <el-option label="设备故障" value="equipment" />
                 <el-option label="配送延误" value="delay" />
+                <el-option label="其他" value="other" />
               </el-select>
               <el-button type="danger" @click="showReportDialog = true">
                 <el-icon><Plus /></el-icon>
