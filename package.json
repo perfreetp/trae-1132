@@ -1,0 +1,28 @@
+{
+  "name": "cold-chain-monitor",
+  "version": "1.0.0",
+  "description": "生鲜供应链冷链监控桌面应用",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "electron": "wait-on http://localhost:5173 && electron .",
+    "start": "concurrently \"npm run dev\" \"npm run electron\"",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.5",
+    "element-plus": "^2.4.4",
+    "echarts": "^5.4.3",
+    "dayjs": "^1.11.10",
+    "@element-plus/icons-vue": "^2.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vite": "^5.0.10",
+    "electron": "^28.0.0",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0"
+  }
+}

@@ -1,0 +1,610 @@
+<template>
+  <div class="page-container">
+    <div class="page-title">
+      <el-icon :size="24" color="#60a5fa"><Warehouse /></el-icon>
+      仓库作业
+      <span style="font-size:14px;color:#64748b;font-weight:normal;">装卸检查 · 库位分配 · 损耗登记</span>
+    </div>
+
+    <el-row :gutter="16" class="mb-20">
+      <el-col :span="6">
+        <div class="stat-card">
+          <el-icon :size="28" color="#60a5fa"><Warehouse /></el-icon>
+          <div class="stat-value" style="font-size:28px;">4</div>
+          <div class="stat-label">运营仓库</div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card" style="border-color: #22c55e;">
+          <el-icon :size="28" color="#22c55e"><Upload /></el-icon>
+          <div class="stat-value" style="font-size:28px;color:#22c55e;">12</div>
+          <div class="stat-label">今日入库</div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card" style="border-color: #06b6d4;">
+          <el-icon :size="28" color="#06b6d4"><Download /></el-icon>
+          <div class="stat-value" style="font-size:28px;color:#06b6d4;">15</div>
+          <div class="stat-label">今日出库</div>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card" style="border-color: #f59e0b;">
+          <el-icon :size="28" color="#f59e0b"><Delete /></el-icon>
+          <div class="stat-value" style="font-size:28px;color:#f59e0b;">150</div>
+          <div class="stat-label">今日损耗(kg)</div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <el-tabs v-model="activeTab" class="warehouse-tabs">
+      <el-tab-pane label="装卸检查" name="loading">
+        <div class="card-dark">
+          <div class="flex-between mb-16">
+            <div style="font-size:16px;font-weight:600;color:#f1f5f9;">装卸任务列表</div>
+            <div class="flex-between" style="gap: 12px;">
+              <el-select v-model="warehouseFilter" size="default" placeholder="选择仓库" style="width: 160px;">
+                <el-option label="全部仓库" value="" />
+                <el-option v-for="w in warehouseList" :key="w.id" :label="w.name" :value="w.id" />
+              </el-select>
+              <el-button type="primary" @click="showCheckDialog = true">
+                <el-icon><DocumentAdd /></el-icon>
+                新增检查
+              </el-button>
+            </div>
+          </div>
+
+          <div class="table-dark">
+            <el-table :data="loadingTasks" stripe style="width: 100%">
+              <el-table-column prop="taskNo" label="任务编号" width="140" />
+              <el-table-column prop="type" label="类型" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.type === '入库' ? 'success' : 'primary'" size="small">{{ row.type }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="batch" label="批次号" width="160" />
+              <el-table-column prop="product" label="产品名称" min-width="160" />
+              <el-table-column prop="warehouse" label="仓库" width="130" />
+              <el-table-column prop="vehicle" label="车辆" width="110" />
+              <el-table-column label="温度检查" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="row.tempOk ? 'success' : 'danger'" size="small">
+                    {{ row.tempOk ? '合格' : '异常' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="包装检查" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="row.packageOk ? 'success' : 'warning'" size="small">
+                    {{ row.packageOk ? '合格' : '待复检' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="operator" label="操作员" width="100" />
+              <el-table-column prop="time" label="时间" width="150" />
+              <el-table-column label="状态" width="100">
+                <template #default="{ row }">
+                  <el-tag :class="'status-' + row.status" size="small">
+                    {{ row.statusText }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="120" fixed="right">
+                <template #default="{ row }">
+                  <el-button link type="primary" size="small" @click="viewCheckDetail(row)">详情</el-button>
+                  <el-button link type="primary" size="small">打印</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <el-tab-pane label="库位分配" name="location">
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <div class="card-dark">
+              <div style="font-size:16px;font-weight:600;color:#f1f5f9;margin-bottom:16px;">仓库选择</div>
+              <div class="warehouse-selector">
+                <div v-for="w in warehouseList" :key="w.id" class="warehouse-card"
+                  :class="{ active: selectedWarehouse?.id === w.id }"
+                  @click="selectWarehouse(w)">
+                  <div class="flex-between">
+                    <span class="wh-name">{{ w.name }}</span>
+                    <el-tag :type="w.status === 'normal' ? 'success' : 'warning'" size="small">正常</el-tag>
+                  </div>
+                  <div class="wh-loc">{{ w.location }}</div>
+                  <div class="wh-stats">
+                    <span>容量使用率</span>
+                    <el-progress :percentage="Math.round(w.usedArea / w.totalArea * 100)" :show-text="false" :stroke-width="8" />
+                    <span style="color: #60a5fa;">{{ w.usedArea }}/{{ w.totalArea }}㎡</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-col>
+          <el-col :span="16">
+            <div class="card-dark">
+              <div class="flex-between mb-16">
+                <div style="font-size:16px;font-weight:600;color:#f1f5f9;">
+                  {{ selectedWarehouse?.name || '请选择仓库' }} - 库位分布图
+                </div>
+                <el-button type="primary" size="small" @click="showAllocateDialog = true">
+                  <el-icon><SetUp /></el-icon>
+                  分配库位
+                </el-button>
+              </div>
+              <div v-if="selectedWarehouse" class="location-grid">
+                <div v-for="zone in selectedWarehouse.temperatureZones" :key="zone" class="zone-section">
+                  <div class="zone-title">{{ zone }}</div>
+                  <div class="zone-grid">
+                    <div v-for="i in 12" :key="i" class="location-cell"
+                      :class="{ 
+                        occupied: locationStatus[i-1] === 'occupied',
+                        empty: locationStatus[i-1] === 'empty',
+                        reserved: locationStatus[i-1] === 'reserved'
+                      }"
+                      @click="viewLocationDetail(zone, i)">
+                      <span class="cell-code">{{ zone.substring(0,2) }}-{{ String(i).padStart(2, '0') }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="empty-tip">
+                <el-icon :size="48" color="#475569"><Warehouse /></el-icon>
+                <p>请从左侧选择一个仓库查看库位分布</p>
+              </div>
+              <div class="location-legend">
+                <span><em class="dot empty"></em>空闲</span>
+                <span><em class="dot occupied"></em>已占用</span>
+                <span><em class="dot reserved"></em>已预约</span>
+              </div>
+            </div>
+          </el-col>
+        </el-row>
+      </el-tab-pane>
+
+      <el-tab-pane label="损耗登记" name="damage">
+        <div class="card-dark">
+          <div class="flex-between mb-16">
+            <div style="font-size:16px;font-weight:600;color:#f1f5f9;">损耗记录</div>
+            <el-button type="danger" @click="showDamageDialog = true">
+              <el-icon><Warning /></el-icon>
+              登记损耗
+            </el-button>
+          </div>
+
+          <div class="table-dark">
+            <el-table :data="damageRecords" stripe style="width: 100%">
+              <el-table-column prop="id" label="记录编号" width="140" />
+              <el-table-column prop="batch" label="批次号" width="160" />
+              <el-table-column prop="product" label="产品名称" min-width="160" />
+              <el-table-column prop="type" label="损耗类型" width="120">
+                <template #default="{ row }">
+                  <el-tag size="small" :class="row.type === '变质' ? 'status-danger' : row.type === '破损' ? 'status-warning' : 'status-info'">
+                    {{ row.type }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="损耗数量" width="120">
+                <template #default="{ row }">
+                  <span style="color: #f87171; font-weight: 600;">{{ row.quantity }} {{ row.unit }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="lossAmount" label="损失金额(元)" width="140">
+                <template #default="{ row }">
+                  <span style="color: #f87171;">¥{{ row.lossAmount }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="location" label="发生环节" width="120" />
+              <el-table-column prop="reason" label="原因" min-width="150" />
+              <el-table-column prop="operator" label="登记人" width="100" />
+              <el-table-column prop="time" label="登记时间" width="160" />
+              <el-table-column label="操作" width="100">
+                <template #default="{ row }">
+                  <el-button link type="primary" size="small">详情</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
+
+    <el-dialog v-model="showCheckDialog" title="装卸检查" width="650px">
+      <el-form :model="checkForm" label-width="110px">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="任务类型">
+              <el-radio-group v-model="checkForm.type">
+                <el-radio value="入库">入库</el-radio>
+                <el-radio value="出库">出库</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="批次号">
+              <el-select v-model="checkForm.batch" placeholder="选择批次" style="width: 100%;">
+                <el-option v-for="b in batchList" :key="b.id" :label="b.id" :value="b.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="目标仓库">
+              <el-select v-model="checkForm.warehouse" placeholder="选择仓库" style="width: 100%;">
+                <el-option v-for="w in warehouseList" :key="w.id" :label="w.name" :value="w.name" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="运输车辆">
+              <el-select v-model="checkForm.vehicle" placeholder="选择车辆" style="width: 100%;">
+                <el-option v-for="v in vehicleList" :key="v.id" :label="v.plate" :value="v.plate" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="温度检测">
+          <el-input-number v-model="checkForm.temperature" :precision="1" :step="0.5" /> ℃
+          <span style="margin-left: 20px; color: #94a3b8;">标准范围: 0-4℃</span>
+        </el-form-item>
+        <el-form-item label="包装检查">
+          <el-checkbox v-model="checkForm.packageIntact">包装完整</el-checkbox>
+          <el-checkbox v-model="checkForm.noDamage" style="margin-left: 20px;">无破损</el-checkbox>
+          <el-checkbox v-model="checkForm.sealed" style="margin-left: 20px;">密封完好</el-checkbox>
+        </el-form-item>
+        <el-form-item label="质检照片">
+          <el-upload
+            action="#"
+            list-type="picture-card"
+            :auto-upload="false"
+            :limit="3"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="checkForm.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showCheckDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitCheck">提交检查</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="showAllocateDialog" title="库位分配" width="500px">
+      <el-form :model="allocateForm" label-width="100px">
+        <el-form-item label="批次号">
+          <el-select v-model="allocateForm.batch" placeholder="选择批次" style="width: 100%;">
+            <el-option v-for="b in batchList" :key="b.id" :label="b.id + ' - ' + b.name" :value="b.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="温区选择">
+          <el-select v-model="allocateForm.zone" placeholder="选择温区" style="width: 100%;">
+            <el-option label="冷藏(0-4℃)" value="冷藏(0-4℃)" />
+            <el-option label="冷冻(-18℃)" value="冷冻(-18℃)" />
+            <el-option label="恒温(15-20℃)" value="恒温(15-20℃)" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="库位编号">
+          <el-select v-model="allocateForm.location" placeholder="选择库位" style="width: 100%;">
+            <el-option label="冷藏-01 (空闲)" value="冷藏-01" />
+            <el-option label="冷藏-02 (空闲)" value="冷藏-02" />
+            <el-option label="冷藏-03 (空闲)" value="冷藏-03" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="存放数量">
+          <el-input-number v-model="allocateForm.quantity" :min="1" /> kg
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showAllocateDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitAllocate">确认分配</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="showDamageDialog" title="损耗登记" width="600px">
+      <el-form :model="damageForm" label-width="100px">
+        <el-form-item label="批次号">
+          <el-select v-model="damageForm.batch" placeholder="选择批次" style="width: 100%;">
+            <el-option v-for="b in batchList" :key="b.id" :label="b.id + ' - ' + b.name" :value="b.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="损耗类型">
+          <el-radio-group v-model="damageForm.type">
+            <el-radio value="变质">变质</el-radio>
+            <el-radio value="破损">破损</el-radio>
+            <el-radio value="其他">其他</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="损耗数量">
+              <el-input-number v-model="damageForm.quantity" :min="0" :precision="1" /> kg
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="损失金额">
+              <el-input-number v-model="damageForm.lossAmount" :min="0" :precision="2" /> 元
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="发生环节">
+          <el-select v-model="damageForm.location" placeholder="选择环节" style="width: 100%;">
+            <el-option label="运输途中" value="运输途中" />
+            <el-option label="装卸作业" value="装卸作业" />
+            <el-option label="仓储期间" value="仓储期间" />
+            <el-option label="门店配送" value="门店配送" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="损耗原因">
+          <el-input v-model="damageForm.reason" type="textarea" :rows="2" placeholder="请详细描述损耗原因" />
+        </el-form-item>
+        <el-form-item label="现场照片">
+          <el-upload
+            action="#"
+            list-type="picture-card"
+            :auto-upload="false"
+            :limit="5"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showDamageDialog = false">取消</el-button>
+        <el-button type="danger" @click="submitDamage">确认登记</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive } from 'vue'
+import { ElMessage } from 'element-plus'
+import { batchList, vehicleList, warehouseList } from '@/data/mockData'
+
+const activeTab = ref('loading')
+const warehouseFilter = ref('')
+const selectedWarehouse = ref(warehouseList[0] || null)
+const showCheckDialog = ref(false)
+const showAllocateDialog = ref(false)
+const showDamageDialog = ref(false)
+
+const locationStatus = reactive([
+  'occupied', 'occupied', 'empty', 'reserved', 'occupied', 'empty',
+  'empty', 'occupied', 'occupied', 'empty', 'empty', 'reserved'
+])
+
+const loadingTasks = [
+  { taskNo: 'L20240607001', type: '入库', batch: 'B20240607001', product: '山东烟台红富士苹果', warehouse: '华东中心仓', vehicle: '沪A·12345', tempOk: true, packageOk: true, operator: '王仓管', time: '2024-06-07 08:30:00', status: 'normal', statusText: '已完成' },
+  { taskNo: 'L20240607002', type: '入库', batch: 'B20240607004', product: '内蒙古草原羊肉', warehouse: '华北中心仓', vehicle: '蒙A·22222', tempOk: true, packageOk: false, operator: '李仓管', time: '2024-06-07 09:15:00', status: 'warning', statusText: '待复检' },
+  { taskNo: 'L20240607003', type: '出库', batch: 'B20240607005', product: '浙江舟山带鱼', warehouse: '华东中心仓', vehicle: '浙B·33333', tempOk: true, packageOk: true, operator: '张仓管', time: '2024-06-07 10:00:00', status: 'normal', statusText: '已完成' },
+  { taskNo: 'L20240607004', type: '入库', batch: 'B20240607002', product: '海南三亚妃子笑荔枝', warehouse: '华南中心仓', vehicle: '粤B·67890', tempOk: true, packageOk: true, operator: '赵仓管', time: '2024-06-07 11:30:00', status: 'info', statusText: '进行中' },
+  { taskNo: 'L20240607005', type: '出库', batch: 'B20240607003', product: '云南昆明鲜花玫瑰', warehouse: '西南中心仓', vehicle: '云A·11111', tempOk: false, packageOk: true, operator: '孙仓管', time: '2024-06-07 12:00:00', status: 'danger', statusText: '异常' }
+]
+
+const damageRecords = [
+  { id: 'D20240607001', batch: 'B20240607002', product: '海南三亚妃子笑荔枝', type: '破损', quantity: 150, unit: 'kg', lossAmount: 4500, location: '装卸作业', reason: '人工卸车时部分包装箱挤压变形', operator: '李仓管', time: '2024-06-07 09:30:00' },
+  { id: 'D20240607002', batch: 'B20240607003', product: '云南昆明鲜花玫瑰', type: '变质', quantity: 50, unit: '束', lossAmount: 2500, location: '运输途中', reason: '制冷设备短暂停机导致温度回升', operator: '张值班', time: '2024-06-07 10:45:00' },
+  { id: 'D20240606001', batch: 'B20240606005', product: '浙江舟山带鱼', type: '其他', quantity: 30, unit: 'kg', lossAmount: 900, location: '仓储期间', reason: '库内风机故障导致局部温度波动', operator: '王仓管', time: '2024-06-06 16:20:00' }
+]
+
+const checkForm = reactive({
+  type: '入库',
+  batch: '',
+  warehouse: '',
+  vehicle: '',
+  temperature: 2.5,
+  packageIntact: true,
+  noDamage: true,
+  sealed: true,
+  remark: ''
+})
+
+const allocateForm = reactive({
+  batch: '',
+  zone: '',
+  location: '',
+  quantity: 1000
+})
+
+const damageForm = reactive({
+  batch: '',
+  type: '变质',
+  quantity: 0,
+  lossAmount: 0,
+  location: '',
+  reason: ''
+})
+
+const selectWarehouse = (w) => {
+  selectedWarehouse.value = w
+}
+
+const viewCheckDetail = (row) => {
+  ElMessage.info(`查看任务 ${row.taskNo} 详情`)
+}
+
+const viewLocationDetail = (zone, idx) => {
+  ElMessage.info(`库位 ${zone.substring(0,2)}-${String(idx).padStart(2, '0')} 详情`)
+}
+
+const submitCheck = () => {
+  ElMessage.success('检查记录已提交')
+  showCheckDialog.value = false
+}
+
+const submitAllocate = () => {
+  ElMessage.success('库位分配成功')
+  showAllocateDialog.value = false
+}
+
+const submitDamage = () => {
+  ElMessage.success('损耗已登记')
+  showDamageDialog.value = false
+}
+</script>
+
+<style scoped>
+.warehouse-tabs :deep(.el-tabs__item) {
+  color: #94a3b8;
+  font-size: 15px;
+}
+
+.warehouse-tabs :deep(.el-tabs__item.is-active) {
+  color: #60a5fa;
+}
+
+.warehouse-tabs :deep(.el-tabs__active-bar) {
+  background-color: #60a5fa;
+}
+
+.warehouse-tabs :deep(.el-tabs__nav-wrap::after) {
+  background-color: #334155;
+}
+
+.warehouse-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.warehouse-card {
+  padding: 16px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.warehouse-card:hover,
+.warehouse-card.active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.wh-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.wh-loc {
+  font-size: 12px;
+  color: #64748b;
+  margin: 8px 0;
+}
+
+.wh-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.location-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.zone-section {
+  margin-bottom: 8px;
+}
+
+.zone-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 10px;
+  padding-left: 8px;
+  border-left: 3px solid #3b82f6;
+}
+
+.zone-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.location-cell {
+  aspect-ratio: 1;
+  border: 2px solid #334155;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #0f172a;
+}
+
+.location-cell:hover {
+  border-color: #60a5fa;
+  transform: scale(1.05);
+}
+
+.location-cell.empty {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.location-cell.occupied {
+  border-color: #64748b;
+  background: rgba(100, 116, 139, 0.2);
+}
+
+.location-cell.reserved {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.cell-code {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+.location-legend {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #334155;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.location-legend span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  font-style: normal;
+}
+
+.dot.empty { background: #22c55e; }
+.dot.occupied { background: #64748b; }
+.dot.reserved { background: #f59e0b; }
+
+.empty-tip {
+  text-align: center;
+  padding: 80px 0;
+  color: #64748b;
+}
+
+.empty-tip p {
+  margin-top: 16px;
+  font-size: 14px;
+}
+</style>
